@@ -26,8 +26,14 @@ import static org.junit.Assert.*;
 
 public class RecyclerTest {
 
-    private static Recycler<HandledObject> newRecycler(int max) {
-        return new Recycler<HandledObject>(max) {
+    private static Recycler<HandledObject> newRecycler(int maxCapacityPerThread) {
+        return newRecycler(maxCapacityPerThread, 2, 8, 2);
+    }
+
+    private static Recycler<HandledObject> newRecycler(int maxCapacityPerThread, int maxSharedCapacityFactor,
+                                                       int ratio, int maxDelayedQueuesPerThread) {
+        return new Recycler<HandledObject>(maxCapacityPerThread, maxSharedCapacityFactor, ratio,
+                maxDelayedQueuesPerThread) {
             @Override
             protected HandledObject newObject(
                     Recycler.Handle<HandledObject> handle) {
@@ -133,6 +139,19 @@ public class RecyclerTest {
         object2.recycle();
     }
 
+    @Test
+    public void testRecycleDisableDrop() {
+        Recycler<HandledObject> recycler = newRecycler(1024, 2, 0, 2);
+        HandledObject object = recycler.get();
+        object.recycle();
+        HandledObject object2 = recycler.get();
+        assertSame(object, object2);
+        object2.recycle();
+        HandledObject object3 = recycler.get();
+        assertSame(object, object3);
+        object3.recycle();
+    }
+
     /**
      * Test to make sure bug #2848 never happens again
      * https://github.com/netty/netty/issues/2848
@@ -174,6 +193,7 @@ public class RecyclerTest {
 
         final HandledObject o = recycler.get();
         final HandledObject o2 = recycler.get();
+
         final Thread thread = new Thread() {
             @Override
             public void run() {
